@@ -1,11 +1,13 @@
 /**
- * 
+ *
  */
 package com.crossover.techtrial.controller;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.crossover.techtrial.exceptions.GlobalExceptionHandler;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -26,15 +28,15 @@ import com.crossover.techtrial.service.RideService;
  */
 @RestController
 public class RideController {
-  
+
   @Autowired
-  RideService rideService;
+  private RideService rideService;
 
   @PostMapping(path ="/api/ride")
-  public ResponseEntity<Ride> createNewRide(@RequestBody Ride ride) {
+  public ResponseEntity<Ride> createNewRide(@RequestBody Ride ride) throws GlobalExceptionHandler {
     return ResponseEntity.ok(rideService.save(ride));
   }
-  
+
   @GetMapping(path = "/api/ride/{ride-id}")
   public ResponseEntity<Ride> getRideById(@PathVariable(name="ride-id",required=true)Long rideId){
     Ride ride = rideService.findById(rideId);
@@ -42,12 +44,12 @@ public class RideController {
       return ResponseEntity.ok(ride);
     return ResponseEntity.notFound().build();
   }
-  
+
   /**
    * This API returns the top 5 drivers with their email,name, total minutes, maximum ride duration in minutes.
    * Only rides that starts and ends within the mentioned durations should be counted.
    * Any rides where either start or endtime is outside the search, should not be considered.
-   * 
+   *
    * DONT CHANGE METHOD SIGNATURE AND RETURN TYPES
    * @return
    */
@@ -59,11 +61,11 @@ public class RideController {
     List<TopDriverDTO> topDrivers = new ArrayList<TopDriverDTO>();
     /**
      * Your Implementation Here. And Fill up topDrivers Arraylist with Top
-     * 
+     *
      */
-    
+    topDrivers=(rideService.findTopDrivers(count, startTime, endTime));
     return ResponseEntity.ok(topDrivers);
-    
+
   }
-  
+
 }

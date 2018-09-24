@@ -1,9 +1,11 @@
 /**
- * 
+ *
  */
 package com.crossover.techtrial.model;
 
 import java.io.Serializable;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -26,19 +28,19 @@ public class Ride implements Serializable{
 
   @NotNull
   @Column(name = "start_time")
-  String startTime;
-  
+  LocalDateTime startTime;
+
   @NotNull
   @Column(name = "end_time")
-  String endTime;
-  
+  LocalDateTime endTime;
+
   @Column(name = "distance")
   Long distance;
-  
+
   @ManyToOne
   @JoinColumn(name = "driver_id", referencedColumnName = "id")
   Person driver;
-  
+
   @ManyToOne
   @JoinColumn(name = "rider_id", referencedColumnName = "id")
   Person rider;
@@ -51,19 +53,19 @@ public class Ride implements Serializable{
     this.id = id;
   }
 
-  public String getStartTime() {
+  public LocalDateTime getStartTime() {
     return startTime;
   }
 
-  public void setStartTime(String startTime) {
+  public void setStartTime(LocalDateTime startTime) {
     this.startTime = startTime;
   }
 
-  public String getEndTime() {
+  public LocalDateTime getEndTime() {
     return endTime;
   }
 
-  public void setEndTime(String endTime) {
+  public void setEndTime(LocalDateTime endTime) {
     this.endTime = endTime;
   }
 
@@ -90,8 +92,6 @@ public class Ride implements Serializable{
   public void setRider(Person rider) {
     this.rider = rider;
   }
-  
-  
 
   @Override
   public int hashCode() {
@@ -152,7 +152,7 @@ public class Ride implements Serializable{
   public String toString() {
     return "Ride [id=" + id + ", startTime=" + startTime + ", endTime=" + endTime + ", distance=" + distance + ", driver=" + driver + ", rider=" + rider + "]";
   }
-  
-  
-  
+
+
+
 }

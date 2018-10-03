@@ -19,6 +19,7 @@ public interface RideService {
   public Ride save(Ride ride);
   
   public Ride findById(Long rideId);
+  List<Ride> getAll();
   List<TopDriverDTO> findTopDrivers(Long count, LocalDateTime startTime, LocalDateTime endTime);
 
 }

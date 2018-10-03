@@ -44,7 +44,17 @@ public class RideController {
       return ResponseEntity.ok(ride);
     return ResponseEntity.notFound().build();
   }
-
+  /**
+	 * 
+	 * @return
+	 */
+	@GetMapping(path = "/api/ride")
+	public ResponseEntity<List<Ride>> getAllRides() {
+		List<Ride> rides = rideService.getAll();
+		if (rides != null)
+			return ResponseEntity.ok(rides);
+		return ResponseEntity.notFound().build();
+	}
   /**
    * This API returns the top 5 drivers with their email,name, total minutes, maximum ride duration in minutes.
    * Only rides that starts and ends within the mentioned durations should be counted.

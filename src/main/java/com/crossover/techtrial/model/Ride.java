@@ -147,6 +147,9 @@ public class Ride implements Serializable{
       return false;
     return true;
   }
+  public long getRideDurationInSeconds() {
+		return Duration.between(startTime, endTime).getSeconds();
+	}
 
   @Override
   public String toString() {

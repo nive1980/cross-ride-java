@@ -1,0 +1,1099 @@
+From f2220754c74d45750afd41a270c1541b06a06989 Mon Sep 17 00:00:00 2001
+From: nsingh <nsingh@aarininc.com>
+Date: Mon, 24 Sep 2018 23:27:11 +0530
+Subject: [PATCH 1/2] My submission
+XOV: XO_0_0_1
+
+---
+ .gitignore                                    |  1 +
+ gradlew                                       |  0
+ .../controller/PersonController.java          |  2 +-
+ .../techtrial/controller/RideController.java  | 24 ++---
+ .../exceptions/GlobalExceptionHandler.java    | 16 +++-
+ .../com/crossover/techtrial/model/Ride.java   | 32 +++----
+ .../repositories/RideRepository.java          | 17 +++-
+ .../techtrial/service/RideService.java        |  6 +-
+ .../techtrial/service/RideServiceImpl.java    | 46 +++++++++-
+ src/main/resources/application.properties     |  4 +-
+ .../db/changelog/db.changelog-master.xml      |  1 +
+ .../controller/PersonControllerTest.java      | 92 +++++++++++++++++--
+ 12 files changed, 198 insertions(+), 43 deletions(-)
+ mode change 100755 => 100644 gradlew
+
+diff --git a/.gitignore b/.gitignore
+index 38e8d91..120fc39 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -7,3 +7,4 @@ build/*
+ target/*
+ **/.DS_Store
+ **/.settings
++/.gradle/
+diff --git a/gradlew b/gradlew
+old mode 100755
+new mode 100644
+diff --git a/src/main/java/com/crossover/techtrial/controller/PersonController.java b/src/main/java/com/crossover/techtrial/controller/PersonController.java
+index ded9199..b588af2 100644
+--- a/src/main/java/com/crossover/techtrial/controller/PersonController.java
++++ b/src/main/java/com/crossover/techtrial/controller/PersonController.java
+@@ -35,7 +35,7 @@ public class PersonController {
+     return ResponseEntity.ok(personService.getAll());
+   }
+   
+-  @GetMapping(path = "/api/person/{perso-id}")
++  @GetMapping(path = "/api/person/{person-id}")
+   public ResponseEntity<Person> getPersonById(@PathVariable(name="person-id", required=true)Long personId) {
+     Person person = personService.findById(personId);
+     if (person != null) {
+diff --git a/src/main/java/com/crossover/techtrial/controller/RideController.java b/src/main/java/com/crossover/techtrial/controller/RideController.java
+index baea0d8..3fd4ef1 100644
+--- a/src/main/java/com/crossover/techtrial/controller/RideController.java
++++ b/src/main/java/com/crossover/techtrial/controller/RideController.java
+@@ -1,11 +1,13 @@
+ /**
+- * 
++ *
+  */
+ package com.crossover.techtrial.controller;
+ 
+ import java.time.LocalDateTime;
+ import java.util.ArrayList;
+ import java.util.List;
++import com.crossover.techtrial.exceptions.GlobalExceptionHandler;
++
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.format.annotation.DateTimeFormat;
+ import org.springframework.http.ResponseEntity;
+@@ -26,15 +28,15 @@ import com.crossover.techtrial.service.RideService;
+  */
+ @RestController
+ public class RideController {
+-  
++
+   @Autowired
+-  RideService rideService;
++  private RideService rideService;
+ 
+   @PostMapping(path ="/api/ride")
+-  public ResponseEntity<Ride> createNewRide(@RequestBody Ride ride) {
++  public ResponseEntity<Ride> createNewRide(@RequestBody Ride ride) throws GlobalExceptionHandler {
+     return ResponseEntity.ok(rideService.save(ride));
+   }
+-  
++
+   @GetMapping(path = "/api/ride/{ride-id}")
+   public ResponseEntity<Ride> getRideById(@PathVariable(name="ride-id",required=true)Long rideId){
+     Ride ride = rideService.findById(rideId);
+@@ -42,12 +44,12 @@ public class RideController {
+       return ResponseEntity.ok(ride);
+     return ResponseEntity.notFound().build();
+   }
+-  
++
+   /**
+    * This API returns the top 5 drivers with their email,name, total minutes, maximum ride duration in minutes.
+    * Only rides that starts and ends within the mentioned durations should be counted.
+    * Any rides where either start or endtime is outside the search, should not be considered.
+-   * 
++   *
+    * DONT CHANGE METHOD SIGNATURE AND RETURN TYPES
+    * @return
+    */
+@@ -59,11 +61,11 @@ public class RideController {
+     List<TopDriverDTO> topDrivers = new ArrayList<TopDriverDTO>();
+     /**
+      * Your Implementation Here. And Fill up topDrivers Arraylist with Top
+-     * 
++     *
+      */
+-    
++    topDrivers=(rideService.findTopDrivers(count, startTime, endTime));
+     return ResponseEntity.ok(topDrivers);
+-    
++
+   }
+-  
++
+ }
+diff --git a/src/main/java/com/crossover/techtrial/exceptions/GlobalExceptionHandler.java b/src/main/java/com/crossover/techtrial/exceptions/GlobalExceptionHandler.java
+index e39127a..b1733ed 100644
+--- a/src/main/java/com/crossover/techtrial/exceptions/GlobalExceptionHandler.java
++++ b/src/main/java/com/crossover/techtrial/exceptions/GlobalExceptionHandler.java
+@@ -1,6 +1,9 @@
+ package com.crossover.techtrial.exceptions;
+ 
+ import java.util.AbstractMap;
++import java.util.Map;
++
++import javassist.tools.web.BadHttpRequest;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import org.springframework.http.HttpStatus;
+@@ -11,10 +14,21 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
+ 
+ @ControllerAdvice
+ @Component
+-public class GlobalExceptionHandler {
++public class GlobalExceptionHandler extends Throwable{
+ 
+   private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+ 
++  /**
++   * Global Exception handler for all exceptions.
++   */
++  @ExceptionHandler
++  public ResponseEntity<Map<String, String>> handle(CrossRideBusinessException exception) {
++    // general exception
++    LOG.error("Exception: Some Business Exception occurred. ", exception);
++
++    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception.getBusinessExceptions());
++  }
++
+   /**
+    * Global Exception handler for all exceptions.
+    */
+diff --git a/src/main/java/com/crossover/techtrial/model/Ride.java b/src/main/java/com/crossover/techtrial/model/Ride.java
+index 1740eea..ccb2496 100644
+--- a/src/main/java/com/crossover/techtrial/model/Ride.java
++++ b/src/main/java/com/crossover/techtrial/model/Ride.java
+@@ -1,9 +1,11 @@
+ /**
+- * 
++ *
+  */
+ package com.crossover.techtrial.model;
+ 
+ import java.io.Serializable;
++import java.time.Duration;
++import java.time.LocalDateTime;
+ import javax.persistence.Column;
+ import javax.persistence.Entity;
+ import javax.persistence.GeneratedValue;
+@@ -26,19 +28,19 @@ public class Ride implements Serializable{
+ 
+   @NotNull
+   @Column(name = "start_time")
+-  String startTime;
+-  
++  LocalDateTime startTime;
++
+   @NotNull
+   @Column(name = "end_time")
+-  String endTime;
+-  
++  LocalDateTime endTime;
++
+   @Column(name = "distance")
+   Long distance;
+-  
++
+   @ManyToOne
+   @JoinColumn(name = "driver_id", referencedColumnName = "id")
+   Person driver;
+-  
++
+   @ManyToOne
+   @JoinColumn(name = "rider_id", referencedColumnName = "id")
+   Person rider;
+@@ -51,19 +53,19 @@ public class Ride implements Serializable{
+     this.id = id;
+   }
+ 
+-  public String getStartTime() {
++  public LocalDateTime getStartTime() {
+     return startTime;
+   }
+ 
+-  public void setStartTime(String startTime) {
++  public void setStartTime(LocalDateTime startTime) {
+     this.startTime = startTime;
+   }
+ 
+-  public String getEndTime() {
++  public LocalDateTime getEndTime() {
+     return endTime;
+   }
+ 
+-  public void setEndTime(String endTime) {
++  public void setEndTime(LocalDateTime endTime) {
+     this.endTime = endTime;
+   }
+ 
+@@ -90,8 +92,6 @@ public class Ride implements Serializable{
+   public void setRider(Person rider) {
+     this.rider = rider;
+   }
+-  
+-  
+ 
+   @Override
+   public int hashCode() {
+@@ -152,7 +152,7 @@ public class Ride implements Serializable{
+   public String toString() {
+     return "Ride [id=" + id + ", startTime=" + startTime + ", endTime=" + endTime + ", distance=" + distance + ", driver=" + driver + ", rider=" + rider + "]";
+   }
+-  
+-  
+-  
++
++
++
+ }
+diff --git a/src/main/java/com/crossover/techtrial/repositories/RideRepository.java b/src/main/java/com/crossover/techtrial/repositories/RideRepository.java
+index 99ace01..9f67425 100644
+--- a/src/main/java/com/crossover/techtrial/repositories/RideRepository.java
++++ b/src/main/java/com/crossover/techtrial/repositories/RideRepository.java
+@@ -2,16 +2,31 @@
+  * 
+  */
+ package com.crossover.techtrial.repositories;
+-
++import com.crossover.techtrial.model.Person;
+ import com.crossover.techtrial.model.Ride;
++import org.hibernate.sql.Select;
++import org.springframework.data.jpa.repository.Query;
+ import org.springframework.data.repository.CrudRepository;
++import org.springframework.data.repository.query.Param;
+ import org.springframework.data.rest.core.annotation.RestResource;
+ 
++import java.time.LocalDateTime;
++import java.time.LocalTime;
++import java.util.List;
++
++
+ /**
+  * @author crossover
+  *
+  */
+ @RestResource(exported = false)
+ public interface RideRepository extends CrudRepository<Ride, Long> {
++    @Query(value = "SELECT *, SEC_TO_TIME(SUM((TIME_TO_SEC(timediff(end_time, start_time))))) as total_duration FROM ride \n" +
++            "where start_time<= :endDateTime and end_time>= :startDateTime group by driver_id order by total_duration desc limit :count", nativeQuery = true)
++   List<Ride> findTopDriverForDuration(@Param("count") Long count, @Param("startDateTime") LocalDateTime startDateTime, @Param("endDateTime") LocalDateTime endDateTime);
++
++    List<Ride> findAllByEndTimeGreaterThanAndStartTimeLessThan(LocalDateTime startDateTime, LocalDateTime endDateTime);
++
++    List<Ride> findAllByDriver(Person driver);
+ 
+ }
+diff --git a/src/main/java/com/crossover/techtrial/service/RideService.java b/src/main/java/com/crossover/techtrial/service/RideService.java
+index 4926f6b..862d4b5 100644
+--- a/src/main/java/com/crossover/techtrial/service/RideService.java
++++ b/src/main/java/com/crossover/techtrial/service/RideService.java
+@@ -3,7 +3,11 @@
+  */
+ package com.crossover.techtrial.service;
+ 
++import com.crossover.techtrial.dto.TopDriverDTO;
+ import com.crossover.techtrial.model.Ride;
++import java.time.LocalDateTime;
++import java.util.List;
++
+ 
+ /**
+  * RideService for rides.
+@@ -15,6 +19,6 @@ public interface RideService {
+   public Ride save(Ride ride);
+   
+   public Ride findById(Long rideId);
+-  
++  List<TopDriverDTO> findTopDrivers(Long count, LocalDateTime startTime, LocalDateTime endTime);
+ 
+ }
+diff --git a/src/main/java/com/crossover/techtrial/service/RideServiceImpl.java b/src/main/java/com/crossover/techtrial/service/RideServiceImpl.java
+index 4a647cc..80028da 100644
+--- a/src/main/java/com/crossover/techtrial/service/RideServiceImpl.java
++++ b/src/main/java/com/crossover/techtrial/service/RideServiceImpl.java
+@@ -3,11 +3,22 @@
+  */
+ package com.crossover.techtrial.service;
+ 
++import java.time.Duration;
++import java.time.LocalDateTime;
++import java.util.ArrayList;
++import java.util.List;
+ import java.util.Optional;
++import java.util.SortedMap;
++
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Service;
++
++import com.crossover.techtrial.businessrule.RideBusinessRule;
++import com.crossover.techtrial.dto.TopDriverDTO;
++import com.crossover.techtrial.model.Person;
+ import com.crossover.techtrial.model.Ride;
+ import com.crossover.techtrial.repositories.RideRepository;
++import com.crossover.techtrial.service.helper.RiderServiceHelper;
+ 
+ /**
+  * @author crossover
+@@ -17,11 +28,15 @@ import com.crossover.techtrial.repositories.RideRepository;
+ public class RideServiceImpl implements RideService{
+ 
+   @Autowired
+-  RideRepository rideRepository;
+-  
++  private RideRepository rideRepository;
++  @Autowired
++  private RideBusinessRule rideBusinessRule;
++  @Autowired
++  private RiderServiceHelper riderServiceHelper;
+   public Ride save(Ride ride) {
+-    return rideRepository.save(ride);
+-  }
++	  //Business rule to check ride
++	    rideBusinessRule.execute(ride);
++	    return rideRepository.save(ride); }
+   
+   public Ride findById(Long rideId) {
+     Optional<Ride> optionalRide = rideRepository.findById(rideId);
+@@ -30,4 +45,27 @@ public class RideServiceImpl implements RideService{
+     }else return null;
+   }
+ 
++  public List<TopDriverDTO> findTopDrivers(Long count, LocalDateTime startTime, LocalDateTime endTime){
++
++
++	    List<Ride> ridesForTheDuration = rideRepository.findAllByEndTimeGreaterThanAndStartTimeLessThan(startTime, endTime);
++
++	    //Calculate total duration of rides for each driver in sorted order by duration
++	    SortedMap<Person, Duration>  driverDurationMap = riderServiceHelper.getSortedRideDurationMap(ridesForTheDuration, count);
++
++	    List<TopDriverDTO> topDriverDTOS = new ArrayList<>();
++
++	    driverDurationMap.forEach((person, duration) -> {
++	      TopDriverDTO topDriverDTO = new TopDriverDTO();
++	      topDriverDTO.setName(person.getName());
++	      topDriverDTO.setEmail(person.getEmail());
++	      topDriverDTO.setTotalRideDurationInSeconds(riderServiceHelper.getTotalDurationIgnoringOverlap(rideRepository.findAllByDriver(person)).getSeconds());
++	      topDriverDTO.setMaxRideDurationInSecods(riderServiceHelper.getMaxRideDuration(person).getSeconds());
++	      //topDriverDTO.setAverageDistance();
++	      topDriverDTOS.add(topDriverDTO);
++	    });
++
++	    return topDriverDTOS;
++	  }
++
+ }
+diff --git a/src/main/resources/application.properties b/src/main/resources/application.properties
+index 2e14879..abbfdfa 100644
+--- a/src/main/resources/application.properties
++++ b/src/main/resources/application.properties
+@@ -1,8 +1,8 @@
+ #PLEASE TRY NOT TO CHANGE SETTINGS AND USE APPROPRIATE ENV VARIABLES and DATABASE NAME AS CONFIGURED BELOW
+ #Database connection Parameters
+-spring.datasource.url: jdbc:mysql://localhost:3306/crossride?createDatabaseIfNotExist=true&useSSL=false
++spring.datasource.url: jdbc:mysql://localhost:3306/crossride?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+ spring.datasource.username=root
+-spring.datasource.password=
++spring.datasource.password=root
+ spring.datasource.driver-class-name=com.mysql.jdbc.Driver
+ 
+ spring.jpa.hibernate.ddl-auto=none
+diff --git a/src/main/resources/db/changelog/db.changelog-master.xml b/src/main/resources/db/changelog/db.changelog-master.xml
+index ea61ac5..af6afac 100644
+--- a/src/main/resources/db/changelog/db.changelog-master.xml
++++ b/src/main/resources/db/changelog/db.changelog-master.xml
+@@ -3,4 +3,5 @@
+   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.4.xsd">
+   <include file="db/changelog/db.changelog-1.0.xml"/>
++  <include file="db/changelog/db.changelog-2.0.xml"/>
+ </databaseChangeLog>
+\ No newline at end of file
+diff --git a/src/test/java/com/crossover/techtrial/controller/PersonControllerTest.java b/src/test/java/com/crossover/techtrial/controller/PersonControllerTest.java
+index 9ffe808..ddb75fc 100644
+--- a/src/test/java/com/crossover/techtrial/controller/PersonControllerTest.java
++++ b/src/test/java/com/crossover/techtrial/controller/PersonControllerTest.java
+@@ -3,25 +3,32 @@
+  */
+ package com.crossover.techtrial.controller;
+ 
++import com.crossover.techtrial.repositories.RideRepository;
+ import org.junit.Assert;
+ import org.junit.Before;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.mockito.Mock;
+ import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
+ import org.springframework.boot.test.context.SpringBootTest;
+ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
+ import org.springframework.boot.test.web.client.TestRestTemplate;
+-import org.springframework.http.HttpEntity;
+-import org.springframework.http.HttpHeaders;
+-import org.springframework.http.MediaType;
+-import org.springframework.http.ResponseEntity;
++import org.springframework.core.ParameterizedTypeReference;
++import org.springframework.http.*;
+ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+ import org.springframework.test.web.servlet.MockMvc;
+ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+ import com.crossover.techtrial.model.Person;
+ import com.crossover.techtrial.repositories.PersonRepository;
+ 
++import javax.validation.constraints.Null;
++import java.util.List;
++import java.util.Map;
++
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertNotNull;
++
+ /**
+  * @author kshah
+  *
+@@ -40,10 +47,15 @@ public class PersonControllerTest {
+   
+   @Autowired
+   PersonRepository personRepository;
++
++  @Autowired
++  RideRepository rideRepository;
+   
+   @Before
+   public void setup() throws Exception {
+     mockMvc = MockMvcBuilders.standaloneSetup(personController).build();
++    rideRepository.deleteAll();
++    personRepository.deleteAll();
+   }
+   
+   @Test
+@@ -55,8 +67,8 @@ public class PersonControllerTest {
+         "/api/person", person, Person.class);
+     //Delete this user
+     personRepository.deleteById(response.getBody().getId());
+-    Assert.assertEquals("test 1", response.getBody().getName());
+-    Assert.assertEquals(200,response.getStatusCode().value());
++    assertEquals("test 1", response.getBody().getName());
++    assertEquals(200,response.getStatusCode().value());
+   }
+ 
+   private HttpEntity<Object> getHttpEntity(Object body) {
+@@ -65,4 +77,72 @@ public class PersonControllerTest {
+     return new HttpEntity<Object>(body, headers);
+   }
+ 
++  @Test
++  public void user_should_be_able_to_fetch_a_registered_person(){
++    //Register a user
++     Person person = new Person();
++     person.setName("Ashutosh Singh");
++     person.setEmail("agate.ashu@gmail.com");
++     person.setRegistrationNumber("0509809617");
++
++    Person response = template.postForObject("/api/person", person, Person.class);
++    //Verify user registration
++    assertEquals("Ashutosh Singh", response.getName());
++    assertNotNull(response.getId());
++
++    //fetch user detail through API
++    Person fetchedPerson = template.getForObject("/api/person/" + response.getId(), Person.class);
++    //Verify
++    assertEquals("Ashutosh Singh", fetchedPerson.getName());
++    assertNotNull(fetchedPerson.getId());
++
++  }
++
++  @Test
++  public void user_should_get_exception_when_query_with_bad_data(){
++    //Register a user
++    Person person = new Person();
++    person.setName("Ashutosh Singh");
++    person.setEmail("agate.ashu@gmail.com");
++    person.setRegistrationNumber("0509809617");
++
++    Person response = template.postForObject("/api/person", person, Person.class);
++    //Verify user registration
++    assertEquals("Ashutosh Singh", response.getName());
++    assertNotNull(response.getId());
++
++    ResponseEntity<Map<String, String>> result = template.exchange("/api/person/" + "Ashu", HttpMethod.GET, null,  new ParameterizedTypeReference<Map<String, String>>(){});
++
++    assertEquals(400, result.getStatusCode().value());
++    assertEquals(result.getBody().get("message"), "Unable to process this request.");
++  }
++
++  @Test
++  public void user_want_to_list_all_persons(){
++    //Register users
++    Person person1 = new Person();
++    person1.setName("Ashutosh Singh");
++    person1.setEmail("agate.ashu@gmail.com");
++    person1.setRegistrationNumber("0509809617");
++
++    Person response1 = template.postForObject("/api/person", person1, Person.class);
++    assertNotNull(response1.getId());
++
++    Person person2 = new Person();
++    person2.setName("Abhishek Singh");
++    person2.setEmail("abhishek.singh@gmail.com");
++    person2.setRegistrationNumber("055564895");
++
++    Person response2 = template.postForObject("/api/person", person2, Person.class);
++    assertNotNull(response2.getId());
++
++    ResponseEntity<List<Person>> response  = template.exchange("/api/person", HttpMethod.GET, null,  new ParameterizedTypeReference<List<Person>>(){});
++
++    //verify
++    assertNotNull(response.getBody().get(0).getId());
++    assertNotNull(response.getBody().get(1).getId());
++    assertEquals(2, response.getBody().size());
++
++  }
++
+ }
+-- 
+2.19.0.windows.1
+
+
+From 8e12c86cec18586d1614d2d32f1df87ac6e033ce Mon Sep 17 00:00:00 2001
+From: nsingh <nsingh@aarininc.com>
+Date: Mon, 24 Sep 2018 23:28:55 +0530
+Subject: [PATCH 2/2] My submission
+XOV: XO_0_0_1
+
+---
+ .externalToolBuilders/New_Builder.launch      |   9 +
+ ...buildship.core.gradleprojectbuilder.launch |   7 +
+ .../org.eclipse.jdt.core.javabuilder.launch   |   7 +
+ .../techtrial/businessrule/BusinessRule.java  |  10 +
+ .../businessrule/RideBusinessRule.java        |  24 ++
+ ...IS_RIDE_END_DATE_LESS_THAN_START_DATE.java |  18 ++
+ .../CrossRideBusinessException.java           |  21 ++
+ .../helper/PersonComparatorForMapValue.java   |  23 ++
+ .../service/helper/RiderServiceHelper.java    | 104 +++++++++
+ .../db/changelog/db.changelog-2.0.xml         |   7 +
+ .../controller/RideControllerTest.java        | 221 ++++++++++++++++++
+ 11 files changed, 451 insertions(+)
+ create mode 100644 .externalToolBuilders/New_Builder.launch
+ create mode 100644 .externalToolBuilders/org.eclipse.buildship.core.gradleprojectbuilder.launch
+ create mode 100644 .externalToolBuilders/org.eclipse.jdt.core.javabuilder.launch
+ create mode 100644 src/main/java/com/crossover/techtrial/businessrule/BusinessRule.java
+ create mode 100644 src/main/java/com/crossover/techtrial/businessrule/RideBusinessRule.java
+ create mode 100644 src/main/java/com/crossover/techtrial/businessrule/businesscondition/IS_RIDE_END_DATE_LESS_THAN_START_DATE.java
+ create mode 100644 src/main/java/com/crossover/techtrial/exceptions/CrossRideBusinessException.java
+ create mode 100644 src/main/java/com/crossover/techtrial/service/helper/PersonComparatorForMapValue.java
+ create mode 100644 src/main/java/com/crossover/techtrial/service/helper/RiderServiceHelper.java
+ create mode 100644 src/main/resources/db/changelog/db.changelog-2.0.xml
+ create mode 100644 src/test/java/com/crossover/techtrial/controller/RideControllerTest.java
+
+diff --git a/.externalToolBuilders/New_Builder.launch b/.externalToolBuilders/New_Builder.launch
+new file mode 100644
+index 0000000..831a88b
+--- /dev/null
++++ b/.externalToolBuilders/New_Builder.launch
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8" standalone="no"?>
++<launchConfiguration type="org.eclipse.ui.externaltools.ProgramBuilderLaunchConfigurationType">
++<booleanAttribute key="org.eclipse.debug.ui.ATTR_LAUNCH_IN_BACKGROUND" value="false"/>
++<booleanAttribute key="org.eclipse.ui.externaltools.ATTR_BUILDER_ENABLED" value="false"/>
++<stringAttribute key="org.eclipse.ui.externaltools.ATTR_LOCATION" value="C:\Program Files\Java\jdk1.8.0_181\bin\javac.exe"/>
++<stringAttribute key="org.eclipse.ui.externaltools.ATTR_RUN_BUILD_KINDS" value="full,incremental,auto,"/>
++<stringAttribute key="org.eclipse.ui.externaltools.ATTR_TOOL_ARGUMENTS" value="source 8&#13;&#10;-d ${workspace_loc:/Java8}/bin&#13;&#10;${workspace_loc:/Java8}/src/de/tuhrig/java8/*.java"/>
++<booleanAttribute key="org.eclipse.ui.externaltools.ATTR_TRIGGERS_CONFIGURED" value="true"/>
++</launchConfiguration>
+diff --git a/.externalToolBuilders/org.eclipse.buildship.core.gradleprojectbuilder.launch b/.externalToolBuilders/org.eclipse.buildship.core.gradleprojectbuilder.launch
+new file mode 100644
+index 0000000..476165d
+--- /dev/null
++++ b/.externalToolBuilders/org.eclipse.buildship.core.gradleprojectbuilder.launch
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8" standalone="no"?>
++<launchConfiguration type="org.eclipse.ant.AntBuilderLaunchConfigurationType">
++<booleanAttribute key="org.eclipse.ui.externaltools.ATTR_BUILDER_ENABLED" value="false"/>
++<stringAttribute key="org.eclipse.ui.externaltools.ATTR_DISABLED_BUILDER" value="org.eclipse.buildship.core.gradleprojectbuilder"/>
++<mapAttribute key="org.eclipse.ui.externaltools.ATTR_TOOL_ARGUMENTS"/>
++<booleanAttribute key="org.eclipse.ui.externaltools.ATTR_TRIGGERS_CONFIGURED" value="true"/>
++</launchConfiguration>
+diff --git a/.externalToolBuilders/org.eclipse.jdt.core.javabuilder.launch b/.externalToolBuilders/org.eclipse.jdt.core.javabuilder.launch
+new file mode 100644
+index 0000000..7fe64af
+--- /dev/null
++++ b/.externalToolBuilders/org.eclipse.jdt.core.javabuilder.launch
+@@ -0,0 +1,7 @@
++<?xml version="1.0" encoding="UTF-8" standalone="no"?>
++<launchConfiguration type="org.eclipse.ant.AntBuilderLaunchConfigurationType">
++<booleanAttribute key="org.eclipse.ui.externaltools.ATTR_BUILDER_ENABLED" value="false"/>
++<stringAttribute key="org.eclipse.ui.externaltools.ATTR_DISABLED_BUILDER" value="org.eclipse.jdt.core.javabuilder"/>
++<mapAttribute key="org.eclipse.ui.externaltools.ATTR_TOOL_ARGUMENTS"/>
++<booleanAttribute key="org.eclipse.ui.externaltools.ATTR_TRIGGERS_CONFIGURED" value="true"/>
++</launchConfiguration>
+diff --git a/src/main/java/com/crossover/techtrial/businessrule/BusinessRule.java b/src/main/java/com/crossover/techtrial/businessrule/BusinessRule.java
+new file mode 100644
+index 0000000..31854bd
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/businessrule/BusinessRule.java
+@@ -0,0 +1,10 @@
++package com.crossover.techtrial.businessrule;
++
++import com.crossover.techtrial.exceptions.CrossRideBusinessException;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public interface BusinessRule<T> {
++    void execute(T t) throws CrossRideBusinessException ;
++}
+diff --git a/src/main/java/com/crossover/techtrial/businessrule/RideBusinessRule.java b/src/main/java/com/crossover/techtrial/businessrule/RideBusinessRule.java
+new file mode 100644
+index 0000000..b2897d7
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/businessrule/RideBusinessRule.java
+@@ -0,0 +1,24 @@
++package com.crossover.techtrial.businessrule;
++
++import com.crossover.techtrial.businessrule.businesscondition.IS_RIDE_END_DATE_LESS_THAN_START_DATE;
++import com.crossover.techtrial.exceptions.CrossRideBusinessException;
++import com.crossover.techtrial.model.Ride;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.context.annotation.Scope;
++import org.springframework.stereotype.Component;
++
++@Component
++@Scope(value = "prototype")
++public class RideBusinessRule implements BusinessRule<Ride> {
++
++    @Autowired
++    private IS_RIDE_END_DATE_LESS_THAN_START_DATE is_ride_end_date_less_than_start_date;
++
++    @Override
++    public void execute(Ride ride) throws CrossRideBusinessException {
++        if (is_ride_end_date_less_than_start_date.test(ride)) {
++            throw new CrossRideBusinessException("INVALID_DATA", "End time can not be less than or equal to start time");
++        }
++    }
++
++}
+diff --git a/src/main/java/com/crossover/techtrial/businessrule/businesscondition/IS_RIDE_END_DATE_LESS_THAN_START_DATE.java b/src/main/java/com/crossover/techtrial/businessrule/businesscondition/IS_RIDE_END_DATE_LESS_THAN_START_DATE.java
+new file mode 100644
+index 0000000..64c1643
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/businessrule/businesscondition/IS_RIDE_END_DATE_LESS_THAN_START_DATE.java
+@@ -0,0 +1,18 @@
++package com.crossover.techtrial.businessrule.businesscondition;
++
++import com.crossover.techtrial.model.Ride;
++import org.springframework.stereotype.Component;
++
++import java.time.LocalDateTime;
++import java.util.function.Predicate;
++
++@Component
++public class IS_RIDE_END_DATE_LESS_THAN_START_DATE implements Predicate<Ride> {
++    @Override
++    public boolean test(Ride ride) {
++        LocalDateTime startDateTime = ride.getStartTime();
++        LocalDateTime endDateTime = ride.getEndTime();
++
++        return endDateTime.isBefore(startDateTime) || endDateTime.isEqual(startDateTime);
++    }
++}
+diff --git a/src/main/java/com/crossover/techtrial/exceptions/CrossRideBusinessException.java b/src/main/java/com/crossover/techtrial/exceptions/CrossRideBusinessException.java
+new file mode 100644
+index 0000000..2e0eeed
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/exceptions/CrossRideBusinessException.java
+@@ -0,0 +1,21 @@
++package com.crossover.techtrial.exceptions;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public class CrossRideBusinessException extends RuntimeException {
++    private Map<String, String> businessExceptions;
++
++    public CrossRideBusinessException(Map exceptions) {
++        this.businessExceptions = exceptions;
++    }
++
++    public CrossRideBusinessException(String code, String message) {
++        this.businessExceptions = new HashMap<>();
++        this.businessExceptions.put(code, message);
++    }
++
++    public Map<String, String> getBusinessExceptions() {
++        return businessExceptions;
++    }
++}
+diff --git a/src/main/java/com/crossover/techtrial/service/helper/PersonComparatorForMapValue.java b/src/main/java/com/crossover/techtrial/service/helper/PersonComparatorForMapValue.java
+new file mode 100644
+index 0000000..5e001da
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/service/helper/PersonComparatorForMapValue.java
+@@ -0,0 +1,23 @@
++package com.crossover.techtrial.service.helper;
++
++import com.crossover.techtrial.model.Person;
++
++import java.time.Duration;
++import java.util.Comparator;
++import java.util.HashMap;
++import java.util.Map;
++
++public class PersonComparatorForMapValue implements Comparator<Person> {
++    Map<Person, Duration> map = new HashMap<Person, Duration>();
++
++    public PersonComparatorForMapValue(Map<Person, Duration> map){
++        this.map.putAll(map);
++    }
++
++
++    @Override
++    public int compare(Person o1, Person o2) {
++      return map.get(o2).compareTo(map.get(o1));
++
++    }
++}
+diff --git a/src/main/java/com/crossover/techtrial/service/helper/RiderServiceHelper.java b/src/main/java/com/crossover/techtrial/service/helper/RiderServiceHelper.java
+new file mode 100644
+index 0000000..449fef0
+--- /dev/null
++++ b/src/main/java/com/crossover/techtrial/service/helper/RiderServiceHelper.java
+@@ -0,0 +1,104 @@
++package com.crossover.techtrial.service.helper;
++
++import com.crossover.techtrial.model.Person;
++import com.crossover.techtrial.model.Ride;
++import com.crossover.techtrial.repositories.RideRepository;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.stereotype.Component;
++
++import java.time.Duration;
++import java.time.LocalDateTime;
++import java.time.temporal.ChronoUnit;
++import java.util.*;
++import java.util.concurrent.atomic.AtomicReference;
++
++@Component
++public class RiderServiceHelper {
++
++    @Autowired
++    private RideRepository rideRepository;
++
++    public Duration getMaxRideDuration(Person driver) {
++        List<Ride> rides =  rideRepository.findAllByDriver(driver);
++        AtomicReference<Duration> maxDuration = new AtomicReference<>();
++
++        rides.forEach(ride -> {
++            if(maxDuration.get() == null || maxDuration.get().getSeconds() < Duration.between(ride.getStartTime(), ride.getEndTime()).getSeconds()){
++
++                maxDuration.set(Duration.between(ride.getStartTime(), ride.getEndTime()));
++            }
++        });
++
++        return maxDuration.get();
++    }
++
++    public Duration getTotalDurationIgnoringOverlap(List<Ride> rides){
++
++        rides.sort(new Comparator<Ride>() {
++            @Override
++            public int compare(Ride o1, Ride o2) {
++                if(o2.getStartTime().isBefore(o1.getStartTime())){
++                    return 1;
++                }
++                else if(o2.getStartTime().isEqual(o1.getStartTime())){
++                    return 0;
++                }
++                else {
++                    return -1;
++                }
++            }
++        });
++
++        LocalDateTime baseStart = rides.get(0).getStartTime();
++        LocalDateTime baseEnd = rides.get(0).getEndTime();
++        Duration duration = Duration.between(baseStart, baseEnd);
++
++        for (int i = 1; i < rides.size(); i++) {
++            if(baseEnd.isAfter(rides.get(i).getStartTime()) && rides.get(i).getStartTime().isAfter(baseEnd)){
++                baseStart = rides.get(i).getStartTime();
++                baseEnd = rides.get(i).getEndTime();
++                duration = Duration.of(duration.getSeconds() + Duration.between(baseStart, baseEnd).getSeconds(), ChronoUnit.SECONDS);
++            }
++            else if(!(baseStart.isEqual(rides.get(i).getStartTime()) && baseEnd.isEqual( rides.get(i).getEndTime()))){
++                duration = Duration.of(duration.getSeconds() + Duration.between(rides.get(i).getStartTime(), rides.get(i).getEndTime()).getSeconds(),  ChronoUnit.SECONDS);
++                baseStart = rides.get(i).getStartTime();
++                baseEnd = rides.get(i).getEndTime();
++            }
++        }
++
++        return duration;
++    }
++
++    public SortedMap<Person, Duration> getSortedRideDurationMap(List<Ride> ridesForTheDuration, Long count) {
++        Map<Person, Duration> rideDurationOfDrivers = new HashMap<>();
++
++        ridesForTheDuration.forEach(ride -> {
++            if(rideDurationOfDrivers.get(ride.getDriver()) != null) {
++                rideDurationOfDrivers.put(ride.getDriver(), Duration.of(rideDurationOfDrivers.get(ride.getDriver()).getSeconds() + ( Duration.between(ride.getStartTime(), ride.getEndTime())).getSeconds(), ChronoUnit.SECONDS));
++            }
++            else {
++                rideDurationOfDrivers.put(ride.getDriver(), Duration.between(ride.getStartTime(), ride.getEndTime()));
++            }
++        });
++
++        Comparator comparator = new PersonComparatorForMapValue(rideDurationOfDrivers);
++        TreeMap<Person, Duration> sortedRideDurationOfDrivers = new TreeMap<Person, Duration>(comparator);
++
++        sortedRideDurationOfDrivers.putAll(rideDurationOfDrivers);
++        return subMapByTheLimit(sortedRideDurationOfDrivers, count);
++    }
++
++    private  SortedMap<Person, Duration> subMapByTheLimit(TreeMap<Person, Duration> sortedRideDurationOfDrivers, long limit) {
++        //Only try put those many record which is required.
++        SortedMap<Person, Duration> result = null;
++        Object[] keys = sortedRideDurationOfDrivers.keySet().toArray();
++        if(sortedRideDurationOfDrivers.size() > limit) {
++            result = sortedRideDurationOfDrivers.subMap(sortedRideDurationOfDrivers.firstKey(), (Person) keys[(int) (limit - 1)]);
++        }
++        else {
++            result = sortedRideDurationOfDrivers;
++        }
++        return result;
++    }
++
++}
+diff --git a/src/main/resources/db/changelog/db.changelog-2.0.xml b/src/main/resources/db/changelog/db.changelog-2.0.xml
+new file mode 100644
+index 0000000..d00db4e
+--- /dev/null
++++ b/src/main/resources/db/changelog/db.changelog-2.0.xml
+@@ -0,0 +1,7 @@
++<?xml version="1.1" encoding="UTF-8" standalone="no"?>
++<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog" xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog-ext http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
++    <changeSet author="crossover" id="1001122001_create_tables">
++       <modifyDataType tableName="ride" columnName="start_time" newDataType="datetime" />
++        <modifyDataType tableName="ride" columnName="end_time" newDataType="datetime" />
++    </changeSet>
++</databaseChangeLog>
+diff --git a/src/test/java/com/crossover/techtrial/controller/RideControllerTest.java b/src/test/java/com/crossover/techtrial/controller/RideControllerTest.java
+new file mode 100644
+index 0000000..58464f9
+--- /dev/null
++++ b/src/test/java/com/crossover/techtrial/controller/RideControllerTest.java
+@@ -0,0 +1,221 @@
++package com.crossover.techtrial.controller;
++
++import com.crossover.techtrial.dto.TopDriverDTO;
++import com.crossover.techtrial.model.Person;
++import com.crossover.techtrial.model.Ride;
++import com.crossover.techtrial.repositories.PersonRepository;
++import com.crossover.techtrial.repositories.RideRepository;
++import org.junit.Before;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mock;
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.boot.test.web.client.TestRestTemplate;
++import org.springframework.core.ParameterizedTypeReference;
++import org.springframework.http.*;
++import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
++import org.springframework.test.web.servlet.MockMvc;
++import org.springframework.test.web.servlet.setup.MockMvcBuilders;
++
++import java.time.LocalDateTime;
++import java.time.format.DateTimeFormatter;
++import java.time.temporal.ChronoUnit;
++import java.util.*;
++
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertNotNull;
++
++@RunWith(SpringJUnit4ClassRunner.class)
++@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
++public class RideControllerTest {
++
++    MockMvc mockMvc;
++
++    @Mock
++    private RideController rideController;
++
++    @Autowired
++    private TestRestTemplate template;
++
++    @Autowired
++    PersonRepository personRepository;
++
++    @Autowired
++    RideRepository rideRepository;
++
++    @Before
++    public void setup() throws Exception {
++        mockMvc = MockMvcBuilders.standaloneSetup(rideController).build();
++        rideRepository.deleteAll();
++        personRepository.deleteAll();
++    }
++
++    @Test
++    public void registered_user_should_be_able_to_create_a_ride() {
++        //Register users
++        Person person1 = new Person();
++        person1.setName("Ashutosh Singh");
++        person1.setEmail("agate.ashu@gmail.com");
++        person1.setRegistrationNumber("0509809617");
++
++        Person response1 = template.postForObject("/api/person", person1, Person.class);
++        assertNotNull(response1.getId());
++
++        Person person2 = new Person();
++        person2.setName("Abhishek Singh");
++        person2.setEmail("abhishek.singh@gmail.com");
++        person2.setRegistrationNumber("055564895");
++
++        Person response2 = template.postForObject("/api/person", person2, Person.class);
++        assertNotNull(response2.getId());
++
++
++        //Create a ride
++        Ride ride = new Ride();
++        LocalDateTime startDateTime = LocalDateTime.parse("2018-09-18T21:15:38");
++        LocalDateTime endDateTime = startDateTime.plus(1, ChronoUnit.HOURS);
++
++        ride.setDistance(20L);
++        ride.setDriver(response1);
++        ride.setRider(response2);
++        ride.setStartTime(startDateTime);
++        ride.setEndTime(endDateTime);
++
++        Ride rideResponse = template.postForObject("/api/ride", ride, Ride.class);
++
++        //Verify
++        //Fetch created ride from API
++        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
++        Ride response = template.getForObject("/api/ride/"+rideResponse.getId(), Ride.class);
++
++        assertNotNull(response.getId());
++        assertEquals("Ashutosh Singh", response.getDriver().getName());
++        assertEquals((Long) 20L, response.getDistance());
++        assertEquals(startDateTime.format(formatter), response.getStartTime().format(formatter));
++        assertEquals(endDateTime.format(formatter), response.getEndTime().format(formatter));
++
++
++    }
++
++    @Test
++    public void user_try_to_create_ride_where_end_date_is_less_than_start_date() {
++        //Register users
++        Person person1 = new Person();
++        person1.setName("Ashutosh Singh");
++        person1.setEmail("agate.ashu@gmail.com");
++        person1.setRegistrationNumber("0509809617");
++
++        Person response1 = template.postForObject("/api/person", person1, Person.class);
++        assertNotNull(response1.getId());
++
++        Person person2 = new Person();
++        person2.setName("Abhishek Singh");
++        person2.setEmail("abhishek.singh@gmail.com");
++        person2.setRegistrationNumber("055564895");
++
++        Person response2 = template.postForObject("/api/person", person2, Person.class);
++        assertNotNull(response2.getId());
++
++
++        //Create a ride
++        Ride ride = new Ride();
++        LocalDateTime startDateTime = LocalDateTime.now();
++        LocalDateTime endDateTime = startDateTime.minus(1, ChronoUnit.MINUTES);
++
++        ride.setDistance(20L);
++        ride.setDriver(response1);
++        ride.setRider(response2);
++        ride.setStartTime(startDateTime);
++        ride.setEndTime(endDateTime);
++
++        HttpHeaders requestHeaders = new HttpHeaders();
++        requestHeaders.setContentType(MediaType.APPLICATION_JSON);
++        requestHeaders.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
++        HttpEntity<Ride> requestEntity = new HttpEntity<>(ride, requestHeaders);
++
++        ResponseEntity<Map<String, String>> response = template.exchange("/api/ride", HttpMethod.POST, requestEntity,  new ParameterizedTypeReference<Map<String, String>>(){});
++
++        assertEquals(400, response.getStatusCode().value());
++        assertEquals(response.getBody().get("INVALID_DATA"), "End time can not be less than or equal to start time");
++    }
++
++    @Test
++    public void user_should_be_able_to_list_top_drivers() {
++        //Register users
++        Person person1 = new Person();
++        person1.setName("Ashutosh Singh");
++        person1.setEmail("agate.ashu@gmail.com");
++        person1.setRegistrationNumber("0509809617");
++
++        Person response1 = template.postForObject("/api/person", person1, Person.class);
++        assertNotNull(response1.getId());
++
++        Person person2 = new Person();
++        person2.setName("Abhishek Singh");
++        person2.setEmail("abhishek.singh@gmail.com");
++        person2.setRegistrationNumber("055564895");
++
++        Person response2 = template.postForObject("/api/person", person2, Person.class);
++        assertNotNull(response2.getId());
++
++        //Crete few rides
++        //Create Ride - 1
++        Ride ride1 = new Ride();
++        LocalDateTime startDateTime1 = LocalDateTime.now();
++        LocalDateTime endDateTime1 = LocalDateTime.now().plus(1, ChronoUnit.HOURS);
++
++        ride1.setDistance(20L);
++        ride1.setDriver(response1);
++        ride1.setRider(response1);
++        ride1.setStartTime(startDateTime1);
++        ride1.setEndTime(endDateTime1);
++
++        Ride rideResponse1 = template.postForObject("/api/ride", ride1, Ride.class);
++
++        //Create Ride - 2
++        Ride ride2 = new Ride();
++        LocalDateTime startDateTime2 = LocalDateTime.now().plus(2, ChronoUnit.HOURS);
++        LocalDateTime endDateTime2 = startDateTime2.plus(3, ChronoUnit.HOURS);
++
++        ride2.setDistance(30L);
++        ride2.setDriver(response1);
++        ride2.setRider(response2);
++        ride2.setStartTime(startDateTime2);
++        ride2.setEndTime(endDateTime2);
++
++        Ride rideResponse2 = template.postForObject("/api/ride", ride2, Ride.class);
++
++        //Create Ride - 3 (created with different driver than other two)
++        Ride ride3 = new Ride();
++        LocalDateTime startDateTime3 = LocalDateTime.now().plus(4, ChronoUnit.HOURS);
++        LocalDateTime endDateTime3 = startDateTime3.plus(2, ChronoUnit.HOURS);
++
++        ride3.setDistance(40L);
++        ride3.setDriver(response2);
++        ride3.setRider(response1);
++        ride3.setStartTime(startDateTime3);
++        ride3.setEndTime(endDateTime3);
++
++        Ride rideResponse3 = template.postForObject("/api/ride", ride3, Ride.class);
++
++        //fetch top 2 drivers
++        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
++        String queryFromDate = LocalDateTime.now().minus(1, ChronoUnit.DAYS).format(formatter);
++        String queryToDate = LocalDateTime.now().plus(1, ChronoUnit.DAYS).format(formatter);
++        int count = 2;
++        ResponseEntity<List<TopDriverDTO>> response =  template.exchange("/api/top-rides?max="+count+"&startTime="+queryFromDate+ "&endTime="+queryToDate, HttpMethod.GET, null,  new ParameterizedTypeReference<List<TopDriverDTO>>(){});
++
++        List<TopDriverDTO> result = response.getBody();
++
++        assertEquals(count, result.size());
++
++        assertEquals(result.get(0).getName(), "Ashutosh Singh");
++        assertEquals(result.get(0).getTotalRideDurationInSeconds(), (Long)14400L);
++        assertEquals(result.get(0).getMaxRideDurationInSecods(), (Long)10800L);
++
++        assertEquals(result.get(1).getName(), "Abhishek Singh");
++        assertEquals(result.get(1).getTotalRideDurationInSeconds(), (Long)7200L);
++        assertEquals(result.get(1).getMaxRideDurationInSecods(), (Long)7200L);
++    }
++}
+-- 
+2.19.0.windows.1
+

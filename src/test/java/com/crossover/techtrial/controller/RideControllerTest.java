@@ -55,16 +55,16 @@ public class RideControllerTest {
     public void registered_user_should_be_able_to_create_a_ride() {
         //Register users
         Person person1 = new Person();
-        person1.setName("Ashutosh Singh");
-        person1.setEmail("agate.ashu@gmail.com");
+        person1.setName("Nivedita Singh");
+        person1.setEmail("niveditashenoy@gmail.com");
         person1.setRegistrationNumber("0509809617");
 
         Person response1 = template.postForObject("/api/person", person1, Person.class);
         assertNotNull(response1.getId());
 
         Person person2 = new Person();
-        person2.setName("Abhishek Singh");
-        person2.setEmail("abhishek.singh@gmail.com");
+        person2.setName("Nivedita Singh");
+        person2.setEmail("niveditashenoy@gmail.com");
         person2.setRegistrationNumber("055564895");
 
         Person response2 = template.postForObject("/api/person", person2, Person.class);
@@ -90,7 +90,7 @@ public class RideControllerTest {
         Ride response = template.getForObject("/api/ride/"+rideResponse.getId(), Ride.class);
 
         assertNotNull(response.getId());
-        assertEquals("Ashutosh Singh", response.getDriver().getName());
+        assertEquals("Nivedita Singh", response.getDriver().getName());
         assertEquals((Long) 20L, response.getDistance());
         assertEquals(startDateTime.format(formatter), response.getStartTime().format(formatter));
         assertEquals(endDateTime.format(formatter), response.getEndTime().format(formatter));
@@ -102,16 +102,16 @@ public class RideControllerTest {
     public void user_try_to_create_ride_where_end_date_is_less_than_start_date() {
         //Register users
         Person person1 = new Person();
-        person1.setName("Ashutosh Singh");
-        person1.setEmail("agate.ashu@gmail.com");
+        person1.setName("Nivedita Singh");
+        person1.setEmail("niveditashenoy@gmail.com");
         person1.setRegistrationNumber("0509809617");
 
         Person response1 = template.postForObject("/api/person", person1, Person.class);
         assertNotNull(response1.getId());
 
         Person person2 = new Person();
-        person2.setName("Abhishek Singh");
-        person2.setEmail("abhishek.singh@gmail.com");
+        person2.setName("Nivedita Singh");
+        person2.setEmail("niveditashenoy@gmail.com");
         person2.setRegistrationNumber("055564895");
 
         Person response2 = template.postForObject("/api/person", person2, Person.class);
@@ -139,12 +139,29 @@ public class RideControllerTest {
         assertEquals(400, response.getStatusCode().value());
         assertEquals(response.getBody().get("INVALID_DATA"), "End time can not be less than or equal to start time");
     }
+    @Test
+    public void testEqualsAndHashCode() throws Exception {
+        ResponseEntity<Ride> response = template.getForEntity("/api/ride/{ride-id}", Ride.class, 1);
+        Assert.assertEquals(200, response.getStatusCode().value());
+        Ride ride1 = response.getBody();
 
+        response = template.getForEntity("/api/ride/{ride-id}", Ride.class, 1);
+        Assert.assertEquals(200, response.getStatusCode().value());
+        Ride ride2 = response.getBody();
+
+        Assert.assertEquals(ride1, ride2);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testBadRequest_InsufficientParameter() {
+        ResponseEntity<Ride> response = template.getForEntity("/api/person/{ride-id}", Ride.class);
+        Assert.assertEquals(400, response.getStatusCode().value());
+    }
     @Test
     public void user_should_be_able_to_list_top_drivers() {
         //Register users
         Person person1 = new Person();
-        person1.setName("Ashutosh Singh");
+        person1.setName("Nivedita Singh");
         person1.setEmail("agate.ashu@gmail.com");
         person1.setRegistrationNumber("0509809617");
 
@@ -152,8 +169,8 @@ public class RideControllerTest {
         assertNotNull(response1.getId());
 
         Person person2 = new Person();
-        person2.setName("Abhishek Singh");
-        person2.setEmail("abhishek.singh@gmail.com");
+        person2.setName("Nivedita Singh");
+        person2.setEmail("niveditashenoy@gmail.com");
         person2.setRegistrationNumber("055564895");
 
         Person response2 = template.postForObject("/api/person", person2, Person.class);
@@ -214,7 +231,7 @@ public class RideControllerTest {
         assertEquals(result.get(0).getTotalRideDurationInSeconds(), (Long)14400L);
         assertEquals(result.get(0).getMaxRideDurationInSecods(), (Long)10800L);
 
-        assertEquals(result.get(1).getName(), "Abhishek Singh");
+        assertEquals(result.get(1).getName(), "Nivedita Singh");
         assertEquals(result.get(1).getTotalRideDurationInSeconds(), (Long)7200L);
         assertEquals(result.get(1).getMaxRideDurationInSecods(), (Long)7200L);
     }

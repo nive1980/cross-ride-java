@@ -30,7 +30,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /**
- * @author kshah
+ * @author nivedita
  *
  */
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -81,19 +81,19 @@ public class PersonControllerTest {
   public void user_should_be_able_to_fetch_a_registered_person(){
     //Register a user
      Person person = new Person();
-     person.setName("Ashutosh Singh");
-     person.setEmail("agate.ashu@gmail.com");
+     person.setName("Nivedita Singh");
+     person.setEmail("niveditashenoy@gmail.com");
      person.setRegistrationNumber("0509809617");
 
     Person response = template.postForObject("/api/person", person, Person.class);
     //Verify user registration
-    assertEquals("Ashutosh Singh", response.getName());
+    assertEquals("Nivedita Singh", response.getName());
     assertNotNull(response.getId());
 
     //fetch user detail through API
     Person fetchedPerson = template.getForObject("/api/person/" + response.getId(), Person.class);
     //Verify
-    assertEquals("Ashutosh Singh", fetchedPerson.getName());
+    assertEquals("Nivedita Singh", fetchedPerson.getName());
     assertNotNull(fetchedPerson.getId());
 
   }
@@ -102,13 +102,13 @@ public class PersonControllerTest {
   public void user_should_get_exception_when_query_with_bad_data(){
     //Register a user
     Person person = new Person();
-    person.setName("Ashutosh Singh");
-    person.setEmail("agate.ashu@gmail.com");
+    person.setName("Nivedita Singh");
+    person.setEmail("niveditashenoy@gmail.com");
     person.setRegistrationNumber("0509809617");
 
     Person response = template.postForObject("/api/person", person, Person.class);
     //Verify user registration
-    assertEquals("Ashutosh Singh", response.getName());
+    assertEquals("Nivedita Singh", response.getName());
     assertNotNull(response.getId());
 
     ResponseEntity<Map<String, String>> result = template.exchange("/api/person/" + "Ashu", HttpMethod.GET, null,  new ParameterizedTypeReference<Map<String, String>>(){});
@@ -116,21 +116,44 @@ public class PersonControllerTest {
     assertEquals(400, result.getStatusCode().value());
     assertEquals(result.getBody().get("message"), "Unable to process this request.");
   }
+  @Test
+  public void testGetPersons() throws Exception {
+      ResponseEntity<Person[]> responseEntity = template.getForEntity("/api/person", Person[].class);
+      Assert.assertEquals(200, responseEntity.getStatusCode().value());
+      Assert.assertEquals("test 1", responseEntity.getBody()[0].getName());
+  }
+  @Test
+  public void testEqualsAndHashCode() throws Exception {
+      ResponseEntity<Person> response = template.getForEntity("/api/person/{person-id}", Person.class, 1);
+      Assert.assertEquals(200, response.getStatusCode().value());
+      Person person1 = response.getBody();
 
+      response = template.getForEntity("/api/person/{person-id}", Person.class, 1);
+      Assert.assertEquals(200, response.getStatusCode().value());
+      Person person2 = response.getBody();
+
+      Assert.assertEquals(person1, person2);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testBadRequest_InsufficientParameter() {
+      ResponseEntity<Person> response = template.getForEntity("/api/person/{person-id}", Person.class);
+      Assert.assertEquals(400, response.getStatusCode().value());
+  }
   @Test
   public void user_want_to_list_all_persons(){
     //Register users
     Person person1 = new Person();
-    person1.setName("Ashutosh Singh");
-    person1.setEmail("agate.ashu@gmail.com");
+    person1.setName("Nivedita Singh");
+    person1.setEmail("niveditashenoy@gmail.com");
     person1.setRegistrationNumber("0509809617");
 
     Person response1 = template.postForObject("/api/person", person1, Person.class);
     assertNotNull(response1.getId());
 
     Person person2 = new Person();
-    person2.setName("Abhishek Singh");
-    person2.setEmail("abhishek.singh@gmail.com");
+    person2.setName("Nivedita Singh");
+    person2.setEmail("niveditashenoy@gmail.com");
     person2.setRegistrationNumber("055564895");
 
     Person response2 = template.postForObject("/api/person", person2, Person.class);
